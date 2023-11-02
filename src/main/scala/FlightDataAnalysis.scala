@@ -8,15 +8,17 @@ import java.sql.Date
  * Object to analyze flight data.
  */
 object FlightDataAnalysis {
-
+val outPutFolder = "output"
   /** Case class representing a flight. */
   case class Flight(passengerId: String, flightId: String, from: String, to: String, date: Date)
   /** Case class representing a Passenger. */
   case class Passenger(passengerId: String, firstName: String, lastName: String)
   /** Case class representing a pair of flights. */
   case class FlightPair(passenger1Id: String, passenger2Id: String, flightId: String, date: Date)
-  /** Case class representing a pair of passengers. */
-  case class PassengerPair(passenger1Id: String, passenger2Id: String)
+/**Case class representing pairs of passengers*/
+case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Number of Flights Together`: Long)
+
+
 
 
   /**
@@ -28,11 +30,20 @@ object FlightDataAnalysis {
    */
   def answerQuestion1(flights: Dataset[Flight])(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    flights
-      .groupByKey(f => f.date.toLocalDate.getMonthValue)
-      .count()
-      .toDF("Month", "Number of Flights")
-      .sort("Month")
+
+    // Calculate the total number of flights for each month
+    val result = flights
+      .groupBy(month($"date").as("Month")) // Group by month and rename the column to "Month"
+      .agg(count("*").as("Number of Flights")) // Count the number of flights in each group
+      .sort("Month") // Sort the results by month
+
+    // Write the result to a CSV file
+    val fn = "Q3AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    result.write.mode("overwrite").csv(fullPath)
+
+    // Return the result
+    result
   }
   /**
    * Answers question 2: Gets the top 100 passengers who have flown the most.
@@ -44,7 +55,9 @@ object FlightDataAnalysis {
    */
   def answerQuestion2(flights: Dataset[Flight], passengers: Dataset[Passenger])(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    flights
+
+    // Calculate the number of flights for each passenger, join with passengers dataset, and sort the results
+    val result = flights
       .groupBy($"passengerId")
       .agg(count("*").as("Number of Flights"))
       .join(passengers, "passengerId")
@@ -52,70 +65,92 @@ object FlightDataAnalysis {
       .toDF("Passenger ID", "Number of Flights", "First Name", "Last Name")
       .sort(desc("Number of Flights"), asc("Passenger ID"))
       .limit(100)
+
+    // Write the result to a CSV file
+    val fn = "Q2AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    result.write.mode("overwrite").csv(fullPath)
+
+    // Return the result
+    result
   }
+
   /**
    * Computes the longest run of countries visited without visiting the UK.
    *
    * @param countries A sequence of country codes.
    * @return The length of the longest run.
-   */  def longestRun(countries: Seq[String]): Int = {
+   */
+  def longestRun(countries: Seq[String]): Int = {
     countries.foldLeft((0, 0)) { case ((currentRun, maxRun), country) =>
       if (country == "UK") (0, maxRun)
       else (currentRun + 1, Math.max(currentRun + 1, maxRun))
     }._2
   }
 
+  // UDF Call
+  val longestRunUDF: UserDefinedFunction = udf((countries: Seq[String]) => longestRun(countries))
+
   /**
-   * Registers longestRun function as a Spark UDF.
-   *
-   * @return The UserDefinedFunction.
-   */
-  def longestRunUDF: UserDefinedFunction = udf(longestRun _)
-  /**
-   * Answers question 3: Finds the longest run of countries visited without visiting the UK for each passenger.
+   * Answers question 3: Find the greatest number of countries a passenger has been in without being in the UK.
+   * For example, if the countries a passenger was in were:
+   * UK -> FR -> US -> CN -> UK -> DE -> UK, the correct answer would be 3 countries.
    *
    * @param flights The dataset of flights.
-   * @param spark The Spark session.
-   * @return A DataFrame with Passenger ID and their Longest Run.
+   * @param spark   The implicit Spark session.
+   * @return A Dataset of Passenger Pairs and the number of flights they've flown together.
    */
-  def answerQuestion3(flights: Dataset[Flight])(spark: SparkSession): DataFrame = {
+  def answerQuestion3(flights: Dataset[Flight])(implicit spark: SparkSession): DataFrame = {
     import spark.implicits._
 
     val windowSpec = Window.partitionBy($"passengerId").orderBy($"date")
 
-
-    flights
+    val result = flights
       .withColumn("countries", collect_list($"to").over(windowSpec))
       .groupBy($"passengerId")
       .agg(max(longestRunUDF($"countries")).as("Longest Run"))
+      .select($"passengerId".as("Passenger ID"), $"Longest Run")
       .sort(desc("Longest Run"))
-      .toDF("Passenger ID", "Longest Run")
+
+    val fn = "Q3AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    result.write.mode("overwrite").csv(fullPath)
+
+    //Return result
+    result
   }
+
   /**
    * Answers question 4: Finds passenger pairs that have flown together more than 3 times.
    *
    * @param flights The dataset of flights.
-   * @param spark The implicit Spark session.
+   * @param spark   The implicit Spark session.
    * @return A Dataset of Passenger Pairs and the number of flights they've flown together.
    */
-  def answerQuestion4(flights: Dataset[Flight])(implicit spark: SparkSession): Dataset[(PassengerPair, Long)] = {
+  def answerQuestion4(flights: Dataset[Flight])(implicit spark: SparkSession): Dataset[PassengerPair] = {
     import spark.implicits._
 
-    val flightPairs = flights
+    // Generate all possible pairs of passengers for each flight
+    val passengerPairs = flights
       .as("f1")
-      .join(flights.as("f2"),
-        $"f1.flightId" === $"f2.flightId" &&
-          $"f1.passengerId" < $"f2.passengerId")
-      .select($"f1.passengerId".as("passenger1Id"), $"f2.passengerId".as("passenger2Id"))
+      .join(flights.as("f2"), $"f1.flightId" === $"f2.flightId" && $"f1.passengerId" < $"f2.passengerId")
+      .select($"f1.passengerId".alias("passenger1Id"), $"f2.passengerId".alias("passenger2Id"))
+
+    // Count the number of flights together for each passenger pair
+    val flightCounts = passengerPairs
+      .groupBy("passenger1Id", "passenger2Id")
+      .count()
+      .withColumnRenamed("count", "Number of Flights Together")
+      .withColumnRenamed("passenger1Id", "Passenger 1 ID")
+      .withColumnRenamed("passenger2Id", "Passenger 2 ID")
+      .filter($"Number of Flights Together" > 3)
       .as[PassengerPair]
 
-    flightPairs
-      .groupByKey(identity)
-      .count()
-      .filter(_._2 > 3)
-      .toDF("Passenger Pair", "Number of Flights Together")
-      .sort(desc("Number of Flights Together"))
-      .as[(PassengerPair, Long)]
+    val fn = "Q4AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    flightCounts.write.mode("overwrite").csv(fullPath)
+    // Return the result
+    flightCounts
   }
 
   /**
@@ -128,8 +163,9 @@ object FlightDataAnalysis {
    * @param spark         The Spark session.
    * @return A DataFrame with passenger pair details, number of flights together, and the date range.
    */
-  def answerQuestion5(flights: Dataset[Flight], atLeastNTimes: Int, from: Date, to: Date)(spark: SparkSession): DataFrame = {
+  def answerQuestion5(flights: Dataset[Flight], atLeastNTimes: Int, from: Date, to: Date)(implicit spark: SparkSession): DataFrame = {
     import spark.implicits._
+    val outputPath = "output/path"
 
     // Filter flights within the given date range
     val filteredFlights = flights.filter($"date" >= from && $"date" <= to)
@@ -150,13 +186,24 @@ object FlightDataAnalysis {
     // Count the occurrences of each passenger pair in the flights
     val flightTogetherCounts = passengerPairs
       .groupBy($"passenger1Id", $"passenger2Id")
-      .agg(countDistinct($"flightId").as("flightsTogether"))
-      .filter($"flightsTogether" >= atLeastNTimes)
+      .agg(countDistinct($"flightId").as("Number of Flights Together"))
+      .filter($"Number of Flights Together" >= atLeastNTimes)
 
-    // Add a column with the date range
-    flightTogetherCounts
-      .withColumn("From", lit(from.toString))
-      .withColumn("To", lit(to.toString))
-      .select($"passenger1Id", $"passenger2Id", $"flightsTogether", $"From", $"To")
+    // Add a column with the date range and rename columns
+    val result = flightTogetherCounts
+      .withColumnRenamed("passenger1Id", "Passenger 1 ID")
+      .withColumnRenamed("passenger2Id", "Passenger 2 ID")
+      .withColumn("From", lit(from))
+      .withColumn("To", lit(to))
+      .as[PassengerPair]
+      .toDF()
+
+    // Write out to Answer File
+    val fn = "Q5AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    result.write.mode("overwrite").csv(fullPath)
+
+    // Return the result
+    result
   }
 }
