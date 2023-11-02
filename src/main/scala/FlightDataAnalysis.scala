@@ -1,9 +1,8 @@
 import org.apache.spark.sql.expressions.{UserDefinedFunction, Window}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-
 import java.sql.Date
+import Implicits._
 /**
  * Object to analyze flight data.
  */
@@ -38,9 +37,9 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
       .sort("Month") // Sort the results by month
 
     // Write the result to a CSV file
-    val fn = "Q3AnswerFile"
+    val fn = "Q1AnswerFile"
     val fullPath = s"$outPutFolder/$fn"
-    result.write.mode("overwrite").csv(fullPath)
+    result.writeToCsv(fullPath)
 
     // Return the result
     result
@@ -69,7 +68,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
     // Write the result to a CSV file
     val fn = "Q2AnswerFile"
     val fullPath = s"$outPutFolder/$fn"
-    result.write.mode("overwrite").csv(fullPath)
+    result.writeToCsv(fullPath)
 
     // Return the result
     result
@@ -114,7 +113,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
 
     val fn = "Q3AnswerFile"
     val fullPath = s"$outPutFolder/$fn"
-    result.write.mode("overwrite").csv(fullPath)
+    result.writeToCsv(fullPath)
 
     //Return result
     result
@@ -148,7 +147,12 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
 
     val fn = "Q4AnswerFile"
     val fullPath = s"$outPutFolder/$fn"
-    flightCounts.write.mode("overwrite").csv(fullPath)
+    flightCounts.coalesce(1)
+      .write
+      .option("header", "true")
+      .option("delimiter", ",")
+      .mode("overwrite")
+      .csv(fullPath)
     // Return the result
     flightCounts
   }
@@ -201,7 +205,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
     // Write out to Answer File
     val fn = "Q5AnswerFile"
     val fullPath = s"$outPutFolder/$fn"
-    result.write.mode("overwrite").csv(fullPath)
+    result.writeToCsv(fullPath)
 
     // Return the result
     result
