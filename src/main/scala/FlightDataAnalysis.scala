@@ -21,7 +21,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
 
 
   /**
-   * Answers question 1: Counts the number of flights per month.
+   * Answers question 1 & 2: Counts the number of flights per month.
    *
    * @param flights The dataset of flights.
    * @param spark The Spark session.
@@ -44,15 +44,39 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
     // Return the result
     result
   }
+
+  import org.apache.spark.rdd.RDD
+  import org.apache.spark.sql.{Dataset, SparkSession}
+  import org.apache.spark.sql.functions._
+  import java.sql.Date
+
+  def answerQuestion2(flights: Dataset[Flight])(implicit spark: SparkSession): DataFrame = {
+    import spark.implicits._
+
+    // Transform Dataset[Flight] to RDD, map it to extract the month and use reduceByKey to count
+    val monthCounts: RDD[(Int, Long)] = flights.rdd
+      .map(flight => (flight.date.toLocalDate.getMonthValue, 1L))
+      .reduceByKey(_ + _)
+      .sortByKey()
+
+    // Convert RDD back to DataFrame for easier output purposes
+    val result = monthCounts.toDF("Month", "Number of Flights")
+
+    // Write the result to a CSV file
+    val fn = "Q1AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    result.writeToCsv(fullPath) // Assuming writeToCsv is an extension method available for DataFrame
+    result
+  }
   /**
-   * Answers question 2: Gets the top 100 passengers who have flown the most.
+   * Answers question 3: Gets the top 100 passengers who have flown the most.
    *
    * @param flights The dataset of flights.
    * @param passengers The dataset of passengers.
    * @param spark The Spark session.
    * @return A DataFrame with the passenger details and the number of flights they've taken.
    */
-  def answerQuestion2(flights: Dataset[Flight], passengers: Dataset[Passenger])(spark: SparkSession): DataFrame = {
+  def answerQuestion3(flights: Dataset[Flight], passengers: Dataset[Passenger])(spark: SparkSession): DataFrame = {
     import spark.implicits._
 
     // Calculate the number of flights for each passenger, join with passengers dataset, and sort the results
@@ -91,7 +115,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
   val longestRunUDF: UserDefinedFunction = udf((countries: Seq[String]) => longestRun(countries))
 
   /**
-   * Answers question 3: Find the greatest number of countries a passenger has been in without being in the UK.
+   * Answers question 4: Find the greatest number of countries a passenger has been in without being in the UK.
    * For example, if the countries a passenger was in were:
    * UK -> FR -> US -> CN -> UK -> DE -> UK, the correct answer would be 3 countries.
    *
@@ -99,7 +123,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
    * @param spark   The implicit Spark session.
    * @return A Dataset of Passenger Pairs and the number of flights they've flown together.
    */
-  def answerQuestion3(flights: Dataset[Flight])(implicit spark: SparkSession): DataFrame = {
+  def answerQuestion4(flights: Dataset[Flight])(implicit spark: SparkSession): DataFrame = {
     import spark.implicits._
 
     val windowSpec = Window.partitionBy($"passengerId").orderBy($"date")
@@ -120,13 +144,13 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
   }
 
   /**
-   * Answers question 4: Finds passenger pairs that have flown together more than 3 times.
+   * Answers question 5: Finds passenger pairs that have flown together more than 3 times.
    *
    * @param flights The dataset of flights.
    * @param spark   The implicit Spark session.
    * @return A Dataset of Passenger Pairs and the number of flights they've flown together.
    */
-  def answerQuestion4(flights: Dataset[Flight])(implicit spark: SparkSession): Dataset[PassengerPair] = {
+  def answerQuestion5(flights: Dataset[Flight])(implicit spark: SparkSession): Dataset[PassengerPair] = {
     import spark.implicits._
 
     // Generate all possible pairs of passengers for each flight
@@ -158,7 +182,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
   }
 
   /**
-   * Answers question 5: Finds passenger pairs that have flown together at least a certain number of times within a date range.
+   * Answers question 6 & 7: Finds passenger pairs that have flown together at least a certain number of times within a date range.
    *
    * @param flights       The dataset of flights.
    * @param atLeastNTimes The minimum number of times the passenger pairs should have flown together.
@@ -167,7 +191,7 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
    * @param spark         The Spark session.
    * @return A DataFrame with passenger pair details, number of flights together, and the date range.
    */
-  def answerQuestion5(flights: Dataset[Flight], atLeastNTimes: Int, from: Date, to: Date)(implicit spark: SparkSession): DataFrame = {
+  def answerQuestion6(flights: Dataset[Flight], atLeastNTimes: Int, from: Date, to: Date)(implicit spark: SparkSession): DataFrame = {
     import spark.implicits._
     val outputPath = "output/path"
 
@@ -208,6 +232,41 @@ case class PassengerPair(`Passenger 1 ID`: String, `Passenger 2 ID`: String, `Nu
     result.writeToCsv(fullPath)
 
     // Return the result
+    result
+  }
+
+  def answerQuestion7(flights: Dataset[Flight], atLeastNTimes: Int, from: Date, to: Date)(implicit spark: SparkSession): DataFrame = {
+    import spark.implicits._
+
+    // Filter the Dataset first using RDD operations
+    val filteredFlightsRDD = flights.rdd
+      .filter(flight => !flight.date.before(from) && !flight.date.after(to))
+
+    // Generate passenger pairs and count flights together
+    val passengerPairsRDD = filteredFlightsRDD
+      .groupBy(flight => flight.flightId)
+      .flatMap {
+        case (_, flightGroup) =>
+          val passengers = flightGroup.map(_.passengerId).toList
+          for {
+            a <- passengers
+            b <- passengers if a < b
+          } yield ((a, b), 1)
+      }
+      .reduceByKey(_ + _)
+      .filter(_._2 >= atLeastNTimes)
+      .map {
+        case ((passenger1Id, passenger2Id), count) =>
+          PassengerPair(passenger1Id, passenger2Id, count)
+      }
+
+    // Convert RDD[PassengerPair] to DataFrame for easier output purposes
+    val result = passengerPairsRDD.toDF()
+
+    // Write the result to a CSV file
+    val fn = "Q5AnswerFile"
+    val fullPath = s"$outPutFolder/$fn"
+    result.writeToCsv(fullPath)
     result
   }
 }

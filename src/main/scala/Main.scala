@@ -31,10 +31,19 @@ object Main extends App {
   val passengersData = spark.read.option("header", "true").csv(passengerDataPath).as[FlightDataAnalysis.Passenger]
 
   // Calling the interactive menu
-  interactiveMenu()
+  try {
+    // Calling the interactive menu
+    interactiveMenu()
+  } finally {
+    // Ensure that the Spark session is stopped properly.
+    println("Stopping Spark session...")
+    spark.stop()
+    println("Spark session stopped.")
+  }
   /**
    * Provides an interactive command-line interface for the user to select and execute analysis tasks.
    */
+
   def interactiveMenu(): Unit = {
     var continueMenu = true
 
@@ -42,28 +51,46 @@ object Main extends App {
       println("Welcome to the Flight Data Analysis application!")
       println("Please choose an option:")
       println("1: Total number of flights for each month")
-      println("2: Top 100 most frequent flyers")
-      println("3: Greatest number of countries a passenger has been without being in the UK")
-      println("4: Passengers who have been on more than 3 flights together")
-      println("5: Passengers who have been on more than N flights together within a date range")
+      println("2: Total number of flights for each month, No DataFrame")
+      println("3: Top 100 most frequent flyers")
+      println("4: Greatest number of countries a passenger has been without being in the UK")
+      println("5: Passengers who have been on more than 3 flights together")
+      println("6: Passengers who have been on more than N flights together within a date range")
+      println("7: Passengers who have been on more than N flights together within a date range, No DataFrame")
       println("0: Exit")
 
       val userChoice = StdIn.readInt()
 
       userChoice match {
         case 1 => FlightDataAnalysis.answerQuestion1(flightData)(spark).show()
-        case 2 => FlightDataAnalysis.answerQuestion2(flightData, passengersData)(spark) show()
-        case 3 => FlightDataAnalysis.answerQuestion3(flightData)(spark).show()
+        case 2 =>
+          val result2 = FlightDataAnalysis.answerQuestion2(flightData)(spark)
+          result2.show() //Showcase RDD
+        case 3 => FlightDataAnalysis.answerQuestion3(flightData, passengersData)(spark) show()
         case 4 => FlightDataAnalysis.answerQuestion4(flightData)(spark).show()
-        case 5 =>
+        case 5 => FlightDataAnalysis.answerQuestion5(flightData)(spark).show()
+        case 6 =>
           println("Enter atLeastNTimes:")
           val atLeastNTimes = readInt()
           println("Enter from date (yyyy-MM-dd):")
           val from = Date.valueOf(readLine())
           println("Enter to date (yyyy-MM-dd):")
           val to = Date.valueOf(readLine())
-          FlightDataAnalysis.answerQuestion5(flightData, atLeastNTimes, from, to)(spark).show()
-        case _ => println("Invalid choice. Please enter a number between 1 and 5.")
+          FlightDataAnalysis.answerQuestion6(flightData, atLeastNTimes, from, to)(spark).show()
+        case 7 =>
+          println("Enter atLeastNTimes:")
+          val atLeastNTimes = readInt()
+          println("Enter from date (yyyy-MM-dd):")
+          val from = Date.valueOf(readLine())
+          println("Enter to date (yyyy-MM-dd):")
+          val to = Date.valueOf(readLine())
+          val resultDF5 = FlightDataAnalysis.answerQuestion7(flightData, atLeastNTimes, from, to)(spark) // This should return a DataFrame
+          resultDF5.show() //Showcase RDD1
+        case 0 =>
+          println("Exiting the application...")
+          continueMenu = false
+        case _ =>
+          println("Invalid choice. Please enter a number between 0 and 7.")
       }
     }
 

@@ -85,7 +85,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
     val flightsDS = flightsData.toDS()
     val passengersDS = passengersData.toDS()
 
-    val result = answerQuestion2(flightsDS, passengersDS)(spark)
+    val result = answerQuestion3(flightsDS, passengersDS)(spark)
 
     val expectedData = Seq(
       Row("1", 3L, "John", "Doe"),
@@ -130,7 +130,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
 
     val flightsDS = flightsData.toDS()
 
-    val result = answerQuestion3(flightsDS)(spark)
+    val result = answerQuestion4(flightsDS)(spark)
 
     val expectedData = Seq(
       Row("1", 3),
@@ -179,7 +179,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
       Flight("3", "A", "X", "Y", Date.valueOf("2023-01-01"))
     ).toDS()
 
-    val result = answerQuestion4(flightData)(spark)
+    val result = answerQuestion5(flightData)(spark)
 
     val expectedData = Seq(
       PassengerPair("1", "2", 4)
@@ -202,7 +202,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
       Flight("3", "E", "Z", "Y", Date.valueOf("2023-01-05"))
     ).toDS()
 
-    val result = answerQuestion4(flightData)(spark)
+    val result = answerQuestion5(flightData)(spark)
 
     assert(result.isEmpty, "Dataframe should be empty")
   }
