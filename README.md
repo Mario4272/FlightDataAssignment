@@ -20,7 +20,7 @@ Welcome to the FlightDataAssignment! This exercise is designed to evaluate your 
 
 Upon running the solution, an interactive menu will guide you through various analysis tasks:
 
-![image](https://github.com/Mario4272/FlightDataAssignment/assets/19327923/51e29d09-be78-464b-9e71-20797f704a62)
+![image](https://github.com/Mario4272/FlightDataAssignment/assets/19327923/82101490-b1b6-4431-9997-3380fe9eaba0)
 
 
 Each option corresponds to a question from the assignment described below. Select the desired option and follow any additional prompts to view the results.
