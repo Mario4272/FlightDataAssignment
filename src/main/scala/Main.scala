@@ -48,16 +48,21 @@ object Main extends App {
     var continueMenu = true
 
     while (continueMenu) {
-      println("Welcome to the Flight Data Analysis application!")
-      println("Please choose an option:")
-      println("1: Total number of flights for each month")
-      println("2: Total number of flights for each month, No DataFrame")
-      println("3: Top 100 most frequent flyers")
-      println("4: Greatest number of countries a passenger has been without being in the UK")
-      println("5: Passengers who have been on more than 3 flights together")
-      println("6: Passengers who have been on more than N flights together within a date range")
-      println("7: Passengers who have been on more than N flights together within a date range, No DataFrame")
-      println("0: Exit")
+      // Present the menu to the user
+      println(
+        """
+          |"Welcome to the Flight Data Analysis application!"
+          |"Please choose an option:"
+          |"1: Total number of flights for each month"
+          |"11: Total number of flights for each month-Showcase RDD"
+          |"2: Top 100 most frequent flyers"
+          |"3: Greatest number of countries a passenger has been without being in the UK"
+          |"4: Passengers who have been on more than 3 flights together"
+          |"5: Passengers who have been on more than N flights together within a date range"
+          |"55:Passengers who have been on more than N flights together within a date range-Showcase RDD"
+          |"0: Exit"
+          |"Enter your choice: "
+          """.stripMargin)
 
       val userChoice = StdIn.readInt()
 
