@@ -63,12 +63,20 @@ object Main extends App {
 
       userChoice match {
         case 1 => FlightDataAnalysis.answerQuestion1(flightData)(spark).show()
-        case 2 =>
-          val result2 = FlightDataAnalysis.answerQuestion2(flightData)(spark)
+        case 11 =>
+          val result2 = FlightDataAnalysis.answerQuestion11(flightData)(spark)
           result2.show() //Showcase RDD
-        case 3 => FlightDataAnalysis.answerQuestion3(flightData, passengersData)(spark) show()
+        case 2 => FlightDataAnalysis.answerQuestion2(flightData, passengersData)(spark) show()
+        case 3 => FlightDataAnalysis.answerQuestion3(flightData)(spark).show()
         case 4 => FlightDataAnalysis.answerQuestion4(flightData)(spark).show()
-        case 5 => FlightDataAnalysis.answerQuestion5(flightData)(spark).show()
+        case 5 =>
+          println("Enter atLeastNTimes:")
+          val atLeastNTimes = readInt()
+          println("Enter from date (yyyy-MM-dd):")
+          val from = Date.valueOf(readLine())
+          println("Enter to date (yyyy-MM-dd):")
+          val to = Date.valueOf(readLine())
+          FlightDataAnalysis.answerQuestion5(flightData, atLeastNTimes, from, to)(spark).show()
         case 6 =>
           println("Enter atLeastNTimes:")
           val atLeastNTimes = readInt()
@@ -76,15 +84,7 @@ object Main extends App {
           val from = Date.valueOf(readLine())
           println("Enter to date (yyyy-MM-dd):")
           val to = Date.valueOf(readLine())
-          FlightDataAnalysis.answerQuestion6(flightData, atLeastNTimes, from, to)(spark).show()
-        case 7 =>
-          println("Enter atLeastNTimes:")
-          val atLeastNTimes = readInt()
-          println("Enter from date (yyyy-MM-dd):")
-          val from = Date.valueOf(readLine())
-          println("Enter to date (yyyy-MM-dd):")
-          val to = Date.valueOf(readLine())
-          val resultDF5 = FlightDataAnalysis.answerQuestion7(flightData, atLeastNTimes, from, to)(spark) // This should return a DataFrame
+          val resultDF5 = FlightDataAnalysis.answerQuestion55(flightData, atLeastNTimes, from, to)(spark) // This should return a DataFrame
           resultDF5.show() //Showcase RDD1
         case 0 =>
           println("Exiting the application...")

@@ -20,7 +20,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
   /**
    * Tests for answerQuestion1
    */
-  test("answerQuestion1 answerQuestion1 method to calculate the total number of flights for each month") {
+  test("answerQuestion1 method to calculate the total number of flights for each month") {
     // Sample dataset of flights
     val flightsData = Seq(
       Flight("1", "1001", "A", "B", Date.valueOf("2023-01-15")),
@@ -85,7 +85,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
     val flightsDS = flightsData.toDS()
     val passengersDS = passengersData.toDS()
 
-    val result = answerQuestion3(flightsDS, passengersDS)(spark)
+    val result = answerQuestion2(flightsDS, passengersDS)(spark)
 
     val expectedData = Seq(
       Row("1", 3L, "John", "Doe"),
@@ -130,7 +130,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
 
     val flightsDS = flightsData.toDS()
 
-    val result = answerQuestion4(flightsDS)(spark)
+    val result = answerQuestion3(flightsDS)(spark)
 
     val expectedData = Seq(
       Row("1", 3),
@@ -166,7 +166,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
     StructField("numberOfFlightsTogether", LongType, nullable = true)
   ))
 
-  test("Passengers with more than 3 flights together are returned correctly") {
+  test("answerQuestion4 - Passengers with more than 3 flights together are returned correctly") {
     val flightData = Seq(
       Flight("1", "A", "X", "Y", Date.valueOf("2023-01-01")),
       Flight("2", "A", "X", "Y", Date.valueOf("2023-01-01")),
@@ -179,7 +179,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
       Flight("3", "A", "X", "Y", Date.valueOf("2023-01-01"))
     ).toDS()
 
-    val result = answerQuestion5(flightData)(spark)
+    val result = answerQuestion4(flightData)(spark)
 
     val expectedData = Seq(
       PassengerPair("1", "2", 4)
@@ -188,7 +188,7 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
     assertDataFrameEquals(result, expectedData)
   }
 
-  test("Passengers with 3 or fewer flights together are not returned") {
+  test("answerQuestion4a Passengers with 3 or fewer flights together are not returned") {
     val flightData = Seq(
       Flight("1", "A", "X", "Y", Date.valueOf("2023-01-01")),
       Flight("2", "A", "X", "Y", Date.valueOf("2023-01-01")),
@@ -202,12 +202,12 @@ class FlightDataAnalysisTest extends AnyFunSuite with Matchers {
       Flight("3", "E", "Z", "Y", Date.valueOf("2023-01-05"))
     ).toDS()
 
-    val result = answerQuestion5(flightData)(spark)
+    val result = answerQuestion4(flightData)(spark)
 
     assert(result.isEmpty, "Dataframe should be empty")
   }
 
-  test("Test with empty dataset returns empty result") {
+  test("answerQuestion4b Test with empty dataset returns empty result") {
     val flightData = Seq.empty[Flight].toDS()
 
     val result = answerQuestion4(flightData)(spark)
